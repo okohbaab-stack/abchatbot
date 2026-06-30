@@ -38,6 +38,19 @@ const HF_MODEL = process.env.HF_MODEL || 'Qwen/Qwen2.5-7B-Instruct';
 
 /* ---- Supabase REST Helpers ---- */
 
+async function sbFetch(url, options) {
+  const controller = new AbortController();
+  const timeout = setTimeout(() => controller.abort(), 10000);
+  try {
+    const res = await fetch(url, { ...options, signal: controller.signal });
+    clearTimeout(timeout);
+    return res;
+  } catch (e) {
+    clearTimeout(timeout);
+    throw e;
+  }
+}
+
 const SB = {
   headers: {
     'Content-Type': 'application/json',
@@ -46,34 +59,34 @@ const SB = {
   },
   async get(table, query) {
     const url = SUPABASE_URL + '/rest/v1/' + table + '?' + (query || '');
-    const res = await fetch(url, { headers: this.headers });
-    if (!res.ok) throw new Error(`Supabase GET ${table}: ${res.status}`);
+    const res = await sbFetch(url, { headers: this.headers });
+    if (!res.ok) { const t = await res.text(); throw new Error(`Supabase GET ${table} ${res.status}: ${t.substring(0, 200)}`); }
     return res.json();
   },
   async post(table, data) {
-    const res = await fetch(SUPABASE_URL + '/rest/v1/' + table, {
+    const res = await sbFetch(SUPABASE_URL + '/rest/v1/' + table, {
       method: 'POST',
       headers: { ...this.headers, 'Prefer': 'return=representation' },
       body: JSON.stringify(data),
     });
-    if (!res.ok) { const e = await res.text(); throw new Error(`Supabase POST: ${e}`); }
+    if (!res.ok) { const e = await res.text(); throw new Error(`Supabase POST ${res.status}: ${e.substring(0, 200)}`); }
     return res.json();
   },
   async patch(table, query, data) {
-    const res = await fetch(SUPABASE_URL + '/rest/v1/' + table + '?' + query, {
+    const res = await sbFetch(SUPABASE_URL + '/rest/v1/' + table + '?' + query, {
       method: 'PATCH',
       headers: { ...this.headers, 'Prefer': 'return=representation' },
       body: JSON.stringify(data),
     });
-    if (!res.ok) { const e = await res.text(); throw new Error(`Supabase PATCH: ${e}`); }
+    if (!res.ok) { const e = await res.text(); throw new Error(`Supabase PATCH ${res.status}: ${e.substring(0, 200)}`); }
     return res.json();
   },
   async delete(table, query) {
-    const res = await fetch(SUPABASE_URL + '/rest/v1/' + table + '?' + query, {
+    const res = await sbFetch(SUPABASE_URL + '/rest/v1/' + table + '?' + query, {
       method: 'DELETE',
       headers: this.headers,
     });
-    if (!res.ok) { const e = await res.text(); throw new Error(`Supabase DELETE: ${e}`); }
+    if (!res.ok) { const e = await res.text(); throw new Error(`Supabase DELETE ${res.status}: ${e.substring(0, 200)}`); }
     return res.json();
   },
 };
@@ -218,6 +231,24 @@ async function handleRequest(req, res) {
   /* ---- Health ---- */
   if (pathname === '/api/health' && method === 'GET') {
     return sendJSON(res, 200, { status: 'ok', version: '1.0.0', name: 'ABchatbot' });
+  }
+
+  if (pathname === '/api/debug' && method === 'GET') {
+    const result = { supabase_url: SUPABASE_URL, has_key: !!SUPABASE_KEY, node_version: process.version };
+    try {
+      const controller = new AbortController();
+      const timeout = setTimeout(() => controller.abort(), 5000);
+      const res2 = await fetch(SUPABASE_URL + '/rest/v1/users?select=id&limit=1', {
+        headers: { 'apikey': SUPABASE_KEY, 'Authorization': 'Bearer ' + SUPABASE_KEY, 'Content-Type': 'application/json' },
+        signal: controller.signal,
+      });
+      clearTimeout(timeout);
+      result.supabase_status = res2.status;
+      result.supabase_ok = res2.ok;
+      if (!res2.ok) { const txt = await res2.text(); result.supabase_error = txt.substring(0, 200); }
+      else { const d = await res2.json(); result.supabase_data = d; }
+    } catch (e) { result.supabase_error = e.message; }
+    return sendJSON(res, 200, result);
   }
 
   /* ---- Auth Routes ---- */
