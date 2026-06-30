@@ -64,6 +64,8 @@ body{background:var(--bg);color:var(--text);min-height:100vh;overflow:hidden}
 .chat-input-area textarea:focus{border-color:var(--accent)}
 .send-btn{padding:12px 24px;background:var(--accent);color:#fff;border:none;border-radius:var(--radius);font-size:14px;cursor:pointer;transition:opacity .2s;height:48px;white-space:nowrap}
 .send-btn:hover{opacity:.9}.send-btn:disabled{opacity:.5;cursor:not-allowed}
+.menu-btn{padding:8px;background:transparent;border:1px solid var(--border);border-radius:8px;color:var(--text);cursor:pointer;font-size:20px;height:36px;width:36px;display:flex;align-items:center;justify-content:center;flex-shrink:0}
+.menu-btn:hover{background:var(--bg3);border-color:var(--accent)}
 .upload-btn{padding:12px;background:transparent;border:1px solid var(--border);border-radius:var(--radius);color:var(--text2);cursor:pointer;font-size:18px;height:48px;width:48px;display:flex;align-items:center;justify-content:center;transition:.15s;flex-shrink:0}
 .upload-btn:hover{background:var(--bg3);border-color:var(--accent);color:var(--accent)}
 .image-preview{display:flex;align-items:center;gap:8px;padding:8px 12px;background:var(--bg);border:1px solid var(--border);border-radius:var(--radius);margin-bottom:8px}
@@ -121,7 +123,29 @@ body{background:var(--bg);color:var(--text);min-height:100vh;overflow:hidden}
 ::-webkit-scrollbar-track{background:transparent}
 ::-webkit-scrollbar-thumb{background:var(--border);border-radius:3px}
 ::-webkit-scrollbar-thumb:hover{background:var(--text3)}
-@media(max-width:768px){.sidebar{width:220px}.msg{max-width:90%}}
+@media(max-width:768px){
+.sidebar{position:fixed;left:-280px;top:0;bottom:0;z-index:100;transition:left .25s;width:280px}
+.sidebar.open{left:0}
+.sidebar-backdrop{display:none;position:fixed;inset:0;background:rgba(0,0,0,.5);z-index:99}
+.sidebar-backdrop.show{display:block}
+.msg{max-width:95%}.main-content{width:100%}
+.topbar{padding:12px 16px}
+.topbar h3{font-size:14px;max-width:120px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.view-toggle button{padding:6px 12px;font-size:13px}
+.user-info span{display:none}
+.content-area{padding:12px 16px}
+.chat-input-area textarea{font-size:16px} /* prevent iOS zoom */
+.chat-input-area{gap:8px}
+.upload-btn{width:42px;height:42px;font-size:16px;padding:8px}
+.send-btn{padding:10px 16px;height:42px;font-size:13px}
+.media-grid{grid-template-columns:1fr}
+.auth-card{padding:24px;margin:16px}
+.media-modal-content{padding:20px;margin:16px}
+.welcome-cards{grid-template-columns:1fr}
+.model-selector{flex-wrap:wrap}
+.menu-btn{display:flex!important}
+}
+@media(min-width:769px){.menu-btn{display:none!important}.sidebar-backdrop{display:none!important}}
 </style>
 </head>
 <body>
@@ -359,18 +383,33 @@ function AuthPage() {
     '</div></div>';
 }
 
+function toggleSidebar() {
+  var s = D('sidebar');
+  var b = D('sidebar-backdrop');
+  if (!s) return;
+  var open = s.classList.toggle('open');
+  if (b) b.classList.toggle('show', open);
+}
+
+function closeSidebar() {
+  var s = D('sidebar');
+  var b = D('sidebar-backdrop');
+  if (s) s.classList.remove('open');
+  if (b) b.classList.remove('show');
+}
+
 function AppLayout() {
   var activeName = state.activeChat ? (state.activeChat.title || 'Chat') : 'Welcome';
-  var userInitial = state.user ? state.user.name.charAt(0).toUpperCase() : '?';
   return '<div class="app">' +
-    '<div class="sidebar">' +
+    '<div class="sidebar-backdrop" id="sidebar-backdrop" onclick="closeSidebar()"></div>' +
+    '<div class="sidebar" id="sidebar">' +
     '<div class="sidebar-header"><h2>ABchatbot</h2><p>AI-Powered Assistant</p></div>' +
-    '<button class="new-chat-btn" onclick="newChat()">+ New Chat</button>' +
+    '<button class="new-chat-btn" onclick="newChat();closeSidebar()">+ New Chat</button>' +
     '<div class="chat-list" id="chat-list">' +
     state.chats.map(function(c) {
       var cid = c._id || c.id;
       var isActive = state.activeChat && ((state.activeChat._id || state.activeChat.id) === cid);
-      return '<div class="chat-item' + (isActive ? ' active' : '') + '" onclick="selectChatById(\'' + cid + '\')">' +
+      return '<div class="chat-item' + (isActive ? ' active' : '') + '" onclick="selectChatById(\'' + cid + '\');closeSidebar()">' +
         '<div class="chat-item-title">' + esc(c.title || 'Chat') + '</div>' +
         '<div class="chat-item-meta">' + (c.model || '').split('/').pop() + ' &middot; ' + (c.updatedAt ? new Date(c.updatedAt).toLocaleDateString() : '') + '</div>' +
         '</div>';
@@ -379,7 +418,10 @@ function AppLayout() {
     '</div>' +
     '<div class="main-content">' +
     '<div class="topbar">' +
+    '<div class="flex items-center gap-sm">' +
+    '<button class="menu-btn" onclick="toggleSidebar()">☰</button>' +
     '<h3>' + esc(activeName) + '</h3>' +
+    '</div>' +
     '<div class="flex items-center gap-md">' +
     '<div class="view-toggle">' +
     '<button class="' + (state.view === 'chat' ? 'active' : '') + '" onclick="state.view=\'chat\';render()">Chat</button>' +
