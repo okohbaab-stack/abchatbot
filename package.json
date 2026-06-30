@@ -1,0 +1,8 @@
+{
+  "name": "abchatbot",
+  "version": "1.0.0",
+  "description": "ABchatbot - AI-Powered Assistant",
+  "scripts": {
+    "start": "node standalone/server.js"
+  }
+}
