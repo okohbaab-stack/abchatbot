@@ -234,10 +234,26 @@ async function handleRequest(req, res) {
   }
 
   if (pathname === '/api/debug' && method === 'GET') {
-    const result = { supabase_url: SUPABASE_URL, has_key: !!SUPABASE_KEY, node_version: process.version };
+    const result = {
+      supabase_url: SUPABASE_URL,
+      key_prefix: SUPABASE_KEY.substring(0, 10) + '...',
+      node_version: process.version,
+      has_fetch: typeof fetch !== 'undefined',
+    };
+    // Test HF connection
+    if (HF_TOKEN) {
+      try {
+        const c = new AbortController();
+        const t = setTimeout(() => c.abort(), 5000);
+        const r = await fetch('https://router.huggingface.co/v1/models', { headers: { 'Authorization': 'Bearer ' + HF_TOKEN }, signal: c.signal });
+        clearTimeout(t);
+        result.hf_status = r.status;
+      } catch (e) { result.hf_error = e.message; }
+    }
+    // Test Supabase connection
     try {
       const controller = new AbortController();
-      const timeout = setTimeout(() => controller.abort(), 5000);
+      const timeout = setTimeout(() => controller.abort(), 10000);
       const res2 = await fetch(SUPABASE_URL + '/rest/v1/users?select=id&limit=1', {
         headers: { 'apikey': SUPABASE_KEY, 'Authorization': 'Bearer ' + SUPABASE_KEY, 'Content-Type': 'application/json' },
         signal: controller.signal,
@@ -247,7 +263,12 @@ async function handleRequest(req, res) {
       result.supabase_ok = res2.ok;
       if (!res2.ok) { const txt = await res2.text(); result.supabase_error = txt.substring(0, 200); }
       else { const d = await res2.json(); result.supabase_data = d; }
-    } catch (e) { result.supabase_error = e.message; }
+    } catch (e) {
+      result.supabase_error = e.message;
+      result.supabase_error_type = e.constructor?.name;
+      result.supabase_error_code = e.code;
+      result.supabase_error_cause = e.cause?.message || null;
+    }
     return sendJSON(res, 200, result);
   }
 
