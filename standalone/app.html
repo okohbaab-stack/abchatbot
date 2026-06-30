@@ -257,7 +257,12 @@ async function selectChatById(id) {
     state.messages = d.messages || [];
     state.view = 'chat';
     save(); render();
-  } catch (e) {}
+  } catch (e) {
+    state.activeChat = null;
+    state.messages = [];
+    save();
+    loadChats();
+  }
 }
 
 async function deleteChat(e, id) {
@@ -324,8 +329,17 @@ async function sendMessage() {
     if (state.activeChat.title === 'New Chat' && t) { state.activeChat.title = t.substring(0, 60); loadChats(); }
     save(); render();
   } catch (e) {
+    state.loading = false;
+    if (e.message && e.message.toLowerCase().includes('not found')) {
+      state.activeChat = null;
+      state.messages = [];
+      save();
+      loadChats();
+      render();
+      return;
+    }
     state.messages.push({ role: 'assistant', content: 'Error: ' + e.message, timestamp: new Date().toISOString() });
-    state.loading = false; save(); render();
+    save(); render();
   }
 }
 
@@ -441,6 +455,7 @@ function renderChatView() {
     area.innerHTML = '<div class="welcome">' +
       '<h1>Welcome to ABchatbot</h1>' +
       '<p>Your AI-powered assistant for chat, content generation, and creative tasks</p>' +
+      '<button class="new-chat-btn" onclick="newChat()" style="width:auto;display:inline-block;padding:12px 32px;margin-bottom:24px">+ Start New Chat</button>' +
       '<div class="welcome-cards">' +
       '<div class="welcome-card" onclick="newChat()"><div class="icon">💬</div><h4>Start Chatting</h4><p>Ask questions, get answers, and brainstorm ideas</p></div>' +
       '<div class="welcome-card" onclick="state.view=\'media\';render()"><div class="icon">🎨</div><h4>Create Media</h4><p>Generate images, flyers, posters, and documents</p></div>' +
