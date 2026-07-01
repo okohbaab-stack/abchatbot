@@ -7,7 +7,7 @@ try { const env = fs.readFileSync(path.join(__dirname, '.env'), 'utf8'); env.spl
 try { const env = fs.readFileSync(path.join(__dirname, '..', '.env'), 'utf8'); env.split('\n').forEach(l => { const m = l.match(/^([^=]+)=(.*)$/); if (m) process.env[m[1].trim()] = m[2].trim(); }); } catch (e) {}
 
 const PORT = process.env.PORT || 5000;
-const SUPABASE_URL = process.env.SUPABASE_URL || 'https://xstwkufdkdaawhnkoirw.supabase.co';
+const SUPABASE_URL = 'https://xstwkufdkdaawhnkoirw.supabase.co';
 const SUPABASE_KEY = process.env.SUPABASE_SERVICE_KEY || process.env.SUPABASE_KEY || 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InhzdHdrdWZka2RhYXdobmtvaXJ3Iiwicm9sZSI6InNlcnZpY2Vfcm9sZSIsImlhdCI6MTc4Mjg0ODc3MSwiZXhwIjoyMDk4NDI0NzcxfQ.rfCYLOIYZzOye7UNMzCPNPE_bLpR-HunvvrDHJcV_LE';
 const SECRET = 'abchatbot_dev_secret_2024';
 
